@@ -67,12 +67,13 @@ export class ThreadList extends Resolver {
 
             batch.fetch(ctx, (ctx: Context, thread: Thread) => {
 				// Get category ID from parent or args.
-				// This is rather limited at the momebt, because
+				// This is rather limited at the moment, because
 				// we don't check for maximum counts in the category
 				// itself, and we should.
+				// see https://github.com/Joystream/substrate-forum-module/blob/master/src/lib.rs#L515
 				const categoryId = ctx.select<CategoryId>([
 					ctx.param<CategoryId>("id", ctx.parentIfSet()),
-					ctx.param<CategoryId>("catregory"),
+					ctx.param<CategoryId>("category"),
 				])
 				
 				if (categoryId == null) {
