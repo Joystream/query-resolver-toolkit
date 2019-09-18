@@ -1,0 +1,22 @@
+{
+	"name": "query-helper",
+	"version": "1.0.0",
+	"main": "index.ts",
+	"license": "MIT",
+	"scripts": {
+		"lint": "tslint --project .",
+		"lintfix": "tslint --project . --fix",
+		"build": "yarn run asp && asc src/reference/main.ts -b build/query.wasm --debug --importTable --lib src/lib",
+		"watch": "nodemon --watch . --ext ts --exec bash -c \"yarn build\""
+	},
+	"dependencies": {
+		"@as-pect/assembly": "^2.4.1",
+		"@as-pect/cli": "^2.4.1",
+		"@as-pect/core": "^2.4.1",
+		"assemblyscript": "assemblyscript/assemblyscript",
+		"assemblyscript-json": "https://github.com/nearprotocol/assemblyscript-json#staging",
+		"nodemon": "^1.19.1",
+		"tslint": "^5.20.0",
+		"typescript": "^3.6.2"
+	}
+}
