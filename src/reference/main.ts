@@ -14,6 +14,11 @@ export namespace types {
 
 // tslint:disable-next-line:no-namespace
 export namespace resolvers {
-    export const forumCategories = DeclareResolver<CategoryList>()
-    export const forumThreads = DeclareResolver<ThreadList>()
+	export namespace Query {
+		export const forumCategories = DeclareResolver<CategoryList>()
+		export const forumThreads = DeclareResolver<ThreadList>()
+	}
+	export namespace Category {
+		export const threads = DeclareResolver<ThreadList>()
+	}
 }

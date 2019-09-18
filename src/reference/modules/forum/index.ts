@@ -1,4 +1,4 @@
-import { Context, Resolver, FieldFilter } from "joystream/query"
+import { Context, Resolver, FieldFilter, console } from "joystream/query"
 import { Struct } from "joystream/query/codec"
 import { Map, Plain } from "joystream/query/storage"
 
@@ -35,7 +35,7 @@ export class CategoryList extends Resolver {
         NextCategoryId.fetch(ctx, (ctx: Context, nextId: CategoryId) => {
             const batch = CategoryById.batch()
 
-            for (let i: CategoryId = ctx.param<CategoryId>("start"); i < nextId; i++) {
+            for (let i: CategoryId = ctx.mustParam<CategoryId>("start"); i < nextId; i++) {
                 batch.add(i)
             }
 
@@ -66,11 +66,24 @@ export class ThreadList extends Resolver {
             }
 
             batch.fetch(ctx, (ctx: Context, thread: Thread) => {
-                CategoryIdFilter.apply(
-					ctx, 
-					ctx.param<CategoryId>("category"),
-					thread.JSON,
-				)
+				// Get category ID from parent or args.
+				// This is rather limited at the momebt, because
+				// we don't check for maximum counts in the category
+				// itself, and we should.
+				const categoryId = ctx.select<CategoryId>([
+					ctx.param<CategoryId>("id", ctx.parentIfSet()),
+					ctx.param<CategoryId>("catregory"),
+				])
+				
+				if (categoryId == null) {
+					ctx.produce.json(thread.JSON)
+				} else {
+					CategoryIdFilter.apply(
+						ctx, 
+						categoryId,
+						thread.JSON,
+					)
+				}
             })
         })
     }
