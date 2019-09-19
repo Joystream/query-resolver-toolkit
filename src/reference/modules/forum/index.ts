@@ -1,4 +1,4 @@
-import { Context, Resolver, FieldFilter, console } from "joystream/query"
+import { Context, Resolver, FieldFilter } from "joystream/query"
 import { Struct } from "joystream/query/codec"
 import { Map, Plain } from "joystream/query/storage"
 
@@ -46,46 +46,60 @@ export class CategoryList extends Resolver {
     }
 }
 
-
 export class ThreadList extends Resolver {
-    constructor() {
-        super(
+	constructor() {
+		super(
 			[
-				"start: Int = 1",
-				"category: Int = 0", //FIXME: `any` type
+				"category: Int = 0", 
+				"start: Int = 1", 
 			], 
 			"[Thread]")
-    }
+	}
 
-    public resolve(ctx: Context): void {
-        NextThreadId.fetch(ctx, (ctx: Context, nextId: ThreadId) => {
-            const batch = ThreadById.batch()
+	public resolve(ctx: Context): void {
+		NextThreadId.fetch(ctx, (ctx: Context, nextId: ThreadId) => {
+			const self = ctx.as<ThreadList>()
+			self.resolveNextId(ctx, nextId)
+		})
+	}
 
-            for (let i: ThreadId = ctx.param<ThreadId>("start"); i < nextId; i++) {
-                batch.add(i)
-            }
+	protected findCategoryId(ctx: Context): CategoryId {
+		const categoryId = ctx.select<CategoryId>([
+			ctx.param<CategoryId>("id", ctx.parentIfSet()),
+			ctx.param<CategoryId>("category"),
+		])
 
-            batch.fetch(ctx, (ctx: Context, thread: Thread) => {
-				// Get category ID from parent or args.
-				// This is rather limited at the moment, because
-				// we don't check for maximum counts in the category
-				// itself, and we should.
-				// see https://github.com/Joystream/substrate-forum-module/blob/master/src/lib.rs#L515
-				const categoryId = ctx.select<CategoryId>([
-					ctx.param<CategoryId>("id", ctx.parentIfSet()),
-					ctx.param<CategoryId>("category"),
-				])
-				
-				if (categoryId == null) {
-					ctx.produce.json(thread.JSON)
-				} else {
-					CategoryIdFilter.apply(
-						ctx, 
-						categoryId,
-						thread.JSON,
-					)
-				}
-            })
-        })
-    }
+		if (categoryId != null) {
+			return categoryId
+		}
+
+		return 0
+	}
+
+	protected findStartIndex(ctx: Context): ThreadId {
+		return ctx.mustParam<ThreadId>("start")
+	}
+
+	protected resolveNextId(ctx: Context, nextId: ThreadId): void {
+		const batch = ThreadById.batch()
+
+		for (let i: ThreadId = this.findStartIndex(ctx); i < nextId; i++) {
+			ThreadById.fetch(ctx, i, (ctx: Context, thread: Thread) => {
+				const self = ctx.as<ThreadList>()
+				self.resolveThread(ctx, thread, self.findCategoryId(ctx))
+			})
+		}
+	}
+
+	protected resolveThread(ctx: Context, thread: Thread, categoryId: CategoryId): void {
+		if (categoryId == 0) {
+			ctx.produce.json(thread.JSON)
+		} else {
+			CategoryIdFilter.apply(
+				ctx, 
+				categoryId,
+				thread.JSON,
+			)
+		}
+	}
 }

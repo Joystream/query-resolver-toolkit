@@ -17,7 +17,7 @@ describe("Context logic", () => {
        // Get an unpredicatable number
        obj.a = changetype<u32>(c)
 
-       c.ptr = changetype<u32>(obj)
+       c.storage = changetype<u32>(obj)
        const output = c.as<MockObject>()
        expect<u32>(output.a).toBe(obj.a, "context payload should be passed through")
     })

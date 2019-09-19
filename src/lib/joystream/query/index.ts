@@ -95,8 +95,6 @@ export namespace glue {
     export function NewContext(p: Params): Context {
         const c = new Context()
         c.id = changetype<u32>(c)
-		c.params = p
-		c.root = p
 		c.produce = new ContextualYielder(c)
         return c
     }
@@ -261,11 +259,9 @@ declare namespace response {
 
 export class ContextualYielder {
 	context: Context
-	//filters: Array<FilterFunc>
 	
 	constructor(context: Context) {
 		this.context = context
-        //this.filters = new Array<FilterFunc>(0)
 	}
 
     field(entry: TypedMap<string, JSON>, name: string): void {
@@ -306,11 +302,11 @@ export class Context {
     id: u32
     params: Params | null
 	root: Params | null
-    ptr: u32
+    storage: u32 
 	produce: ContextualYielder
 
     as<T>(): T {
-        return changetype<T>(this.ptr)
+        return changetype<T>(this.storage)
     }
 
 	param<T>(name: string, sourcesList: TypedMap<string, JSON>[] | null = null): T {
@@ -467,7 +463,7 @@ export function DeclareResolver<T extends Resolver>(): ResolverWrapper  {
     return new ResolverWrapper(
         (ctx: Context) => {
             const obj = instantiate<T>()
-            ctx.ptr = changetype<u32>(obj)
+            ctx.storage = changetype<u32>(obj)
             obj.resolve(ctx)
         },
         (): string => {
