@@ -95,13 +95,16 @@ export namespace glue {
     export function NewContext(p: Params): Context {
         const c = new Context()
         c.id = changetype<u32>(c)
-		c.params = p
 		c.produce = new ContextualYielder(c)
         return c
     }
 
 	export function SetContextParams(c: Context, p: Params): void {
 		c.params = p
+	}
+
+	export function SetContextParent(c: Context, p: Params): void {
+		c.root = p
 	}
 
     export function ResolveQuery(w: ResolverWrapper, c: Context): void {
@@ -256,11 +259,9 @@ declare namespace response {
 
 export class ContextualYielder {
 	context: Context
-	//filters: Array<FilterFunc>
 	
 	constructor(context: Context) {
 		this.context = context
-        //this.filters = new Array<FilterFunc>(0)
 	}
 
     field(entry: TypedMap<string, JSON>, name: string): void {
@@ -299,18 +300,66 @@ export type StringArrayFunc = () => string[]
 
 export class Context {
     id: u32
-    params: Params
-    ptr: u32
+    params: Params | null
+	root: Params | null
+    storage: u32 
 	produce: ContextualYielder
 
     as<T>(): T {
-        return changetype<T>(this.ptr)
+        return changetype<T>(this.storage)
     }
 
-	param<T>(name: string): T {
-		const value = this.params.get(name)
-        assert(value !== null, "Unexpected null param.")
-		return classify<T>(value as JSON)
+	param<T>(name: string, sourcesList: TypedMap<string, JSON>[] | null = null): T {
+		let sources = sourcesList as TypedMap<string, JSON>[]
+
+		if (sourcesList == null) {
+			sources = new Array<TypedMap<string,JSON>>(0)
+			sources.push(this.params as TypedMap<string, JSON>)
+		}
+
+		for (let i = 0; i < sources.length; i++) {
+			if (sources[i] == null) {
+				continue
+			}
+
+			const src = sources[i] as TypedMap<string, JSON>
+			const value = src.get(name)
+
+		    if (value != null) {
+				return classify<T>(value)
+			}
+		}
+
+		return null
+	}
+
+	mustParam<T>(name: string, sources: TypedMap<string, JSON>[] | null = null): T {
+		const value = this.param<T>(name, sources)
+		assert(value != null)
+		return value
+	}
+
+	select<T>(options: T[]): T {
+		for (let i = 0; i < options.length; i++) {
+			if (options[i] != null) {
+				return options[i]
+			}
+		}
+		return null
+	}
+
+	mustSelect<T>(options: T[]): T {
+        const value = this.select<T>(options)
+		assert(value != null)
+		return value
+	}
+
+	parentIfSet(): TypedMap<string, JSON>[] {
+		const output = new Array<TypedMap<string,JSON>>(0)
+		if (this.root != null) {
+			output.push(this.root as TypedMap<string, JSON>)
+		}
+		return output
 	}
 }
 
@@ -414,7 +463,7 @@ export function DeclareResolver<T extends Resolver>(): ResolverWrapper  {
     return new ResolverWrapper(
         (ctx: Context) => {
             const obj = instantiate<T>()
-            ctx.ptr = changetype<u32>(obj)
+            ctx.storage = changetype<u32>(obj)
             obj.resolve(ctx)
         },
         (): string => {
